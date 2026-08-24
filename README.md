@@ -146,7 +146,7 @@ The frontend dashboard provides:
 
 The platform follows a modular client-server architecture.
 
-![System Architecture](docs/architecture.png)
+![System Architecture](docs/architecture_diagrram.png)
 
 ### Main Components
 
@@ -644,7 +644,7 @@ Project documentation is available in the `docs/` directory.
 
 ### Architecture
 
-![Architecture](docs/architecture-diagrram.png)
+![Architecture](docs/architecture_diagrram.png)
 
 ### ER Diagram
 
