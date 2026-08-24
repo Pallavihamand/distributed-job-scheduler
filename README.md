@@ -384,7 +384,7 @@ distributed_job_scedular/
 │   └── ...
 │
 ├── docs/
-│   ├── architecture.png
+│   ├── architecture-diagrram.png
 │   └── er-diagram.png
 │
 ├── README.md
@@ -644,7 +644,7 @@ Project documentation is available in the `docs/` directory.
 
 ### Architecture
 
-![Architecture](docs/architecture.png)
+![Architecture](docs/architecture-diagrram.png)
 
 ### ER Diagram
 
