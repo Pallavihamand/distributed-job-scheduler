@@ -195,7 +195,7 @@ The platform follows a modular client-server architecture.
 
 The relational database is designed around the main entities required by a distributed scheduling platform.
 
-![Entity Relationship Diagram](docs/er-diagram.png)
+![Entity Relationship Diagram](docs/ER_diagram.png)
 
 ### Core Entities
 
