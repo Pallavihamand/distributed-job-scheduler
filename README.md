@@ -660,15 +660,24 @@ The scheduler is designed around production-oriented reliability and concurrent 
 
 ### Atomic Job Claiming
 
-Jobs are claimed using an atomic database-backed state transition.
+Jobs are claimed using database row-level locking with SQLAlchemy's
+`with_for_update(skip_locked=True)` mechanism.
 
-The claim operation verifies that the job is still eligible before assigning it to a worker and changing its execution state. This prevents multiple concurrent workers from successfully claiming the same job.
+The worker selects an eligible job and locks the corresponding database row
+before changing its state to `CLAIMED`. The `SKIP LOCKED` option allows other
+workers to skip jobs that are currently locked by another worker instead of
+waiting for the lock.
 
-The intended flow is:
+The claim flow is:
 
-`QUEUED/SCHEDULED → CLAIMED → RUNNING`
+`QUEUED/SCHEDULED → Database Row Lock → CLAIMED → RUNNING`
 
-Worker assignment and claim-related state are persisted in the database.
+This prevents multiple concurrent workers from successfully claiming the
+same job and provides the primary concurrency-control mechanism used by the
+scheduler.
+
+Worker assignment and claim-related state are persisted in the database,
+which acts as the source of truth for job ownership and lifecycle state.
 
 ### Failure Recovery
 
@@ -692,16 +701,23 @@ The failed job can then be inspected through the Dead Letter Queue.
 
 ### Idempotency
 
-The scheduler follows an at-least-once execution model. Job handlers should therefore be designed to be idempotent where duplicate execution could cause side effects.
+The scheduler follows an at-least-once execution model. Job handlers should
+therefore be designed to be idempotent where duplicate execution could cause
+side effects.
 
-Database-backed state, execution history, retry tracking, and worker assignment provide the information required to monitor and recover job execution.
+Database-backed state, execution history, retry tracking, and worker
+assignment provide the information required to monitor and recover job
+execution.
 
 ### Concurrency Safety
 
-The database is treated as the source of truth for job state. Workers update job state through controlled database operations rather than relying only on in-memory state.
+The database is treated as the source of truth for job state. Workers update
+job state through controlled database operations rather than relying only on
+in-memory state.
 
-This design allows multiple worker processes to operate against the same queues while maintaining consistent job ownership and lifecycle state.
-
+Database row-level locking with `SKIP LOCKED` allows multiple worker
+processes to poll the same queues concurrently while reducing the risk of
+duplicate job claims.
 
 ---
 
@@ -720,8 +736,6 @@ The system tracks important operational information such as:
 * System health
 
 This allows administrators to identify failed jobs and monitor scheduler health.
-
-
 ## 📚 Documentation
 
 Project documentation is available in the `docs/` directory.
