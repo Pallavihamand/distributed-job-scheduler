@@ -406,6 +406,28 @@ Make sure the following are installed:
 * Git
 
 ---
+### 🗄️ Database Setup
+
+The application uses MySQL as its relational database.
+
+Create a database for the scheduler:
+
+```sql
+CREATE DATABASE distributed_job_scheduler;
+```
+
+Configure the database connection using environment variables. Do not commit database passwords or secrets to GitHub.
+
+Example configuration:
+
+```env
+DATABASE_URL=mysql+pymysql://<username>:<password>@localhost:3306/distributed_job_scheduler
+```
+
+Use the credentials configured for the evaluator's local MySQL installation.
+
+After configuring the database, continue with the backend setup below.
+
 
 # ⚙️## Backend Setup
 
@@ -568,56 +590,118 @@ The dashboard also provides access to:
 
 ## 🧪 Testing & Verification
 
-Critical functionality can be verified through:
+Automated tests cover critical retry and failure-handling behavior.
+
+### Automated Test Results
+
+The test suite currently verifies:
+
+* Fixed retry delay
+* Linear retry delay
+* Exponential retry delay
+* Failed job requeue behavior
+* Dead Letter Queue behavior
+
+Test command:
+
+```bash
+python -m pytest -v
+```
+
+Latest verification:
+
+```text
+5 passed
+```
+
+### Manual Verification
+
+Additional functionality can be verified through:
 
 * Swagger/OpenAPI
 * Frontend workflows
 * REST API requests
-* Database verification
+* Database state verification
 * Worker status monitoring
 * Job lifecycle testing
-* Retry/failure testing
+* Retry and failure testing
 
 Example verification flow:
 
-```text
-Register User
-      ↓
+`Register User
+     ↓
 Login
-      ↓
+     ↓
 Create Organization
-      ↓
+     ↓
 Create Project
-      ↓
+     ↓
 Create Queue
-      ↓
+     ↓
 Create Job
-      ↓
+     ↓
 Worker Executes Job
-      ↓
+     ↓
 Completed / Failed
-      ↓
-Retry or Dead Letter Queue
-```
+     ↓
+Retry or Dead Letter Queue`
 
----
 
 ## 🛡️ Reliability & Concurrency
 
-The platform is designed around production-oriented scheduling principles including:
+The scheduler is designed around production-oriented reliability and concurrent worker execution.
 
-* Worker-based job execution
-* Job status tracking
-* Retry handling
-* Worker heartbeat monitoring
-* Queue pause/resume
-* Concurrency limits
-* Attempt tracking
-* Failure handling
-* Dead-job handling
-* Database-backed job state
+### Worker Execution
 
-The architecture can be extended with atomic job claiming and distributed locking mechanisms for multi-worker deployments.
+* Workers poll queues for eligible jobs.
+* Queue priority and concurrency limits are respected during job processing.
+* Workers maintain heartbeat information so their health and activity can be monitored.
+* Graceful shutdown is supported so workers can stop accepting new work while allowing active executions to finish safely.
+
+### Atomic Job Claiming
+
+Jobs are claimed using an atomic database-backed state transition.
+
+The claim operation verifies that the job is still eligible before assigning it to a worker and changing its execution state. This prevents multiple concurrent workers from successfully claiming the same job.
+
+The intended flow is:
+
+`QUEUED/SCHEDULED → CLAIMED → RUNNING`
+
+Worker assignment and claim-related state are persisted in the database.
+
+### Failure Recovery
+
+If a job execution fails:
+
+`RUNNING → FAILED → RETRY`
+
+The configured retry policy determines the next execution time.
+
+Supported retry strategies include:
+
+* Fixed delay
+* Linear backoff
+* Exponential backoff
+
+When the maximum retry count is reached:
+
+`FAILED → DEAD`
+
+The failed job can then be inspected through the Dead Letter Queue.
+
+### Idempotency
+
+The scheduler follows an at-least-once execution model. Job handlers should therefore be designed to be idempotent where duplicate execution could cause side effects.
+
+Database-backed state, execution history, retry tracking, and worker assignment provide the information required to monitor and recover job execution.
+
+### Concurrency Safety
+
+The database is treated as the source of truth for job state. Workers update job state through controlled database operations rather than relying only on in-memory state.
+
+This design allows multiple worker processes to operate against the same queues while maintaining consistent job ownership and lifecycle state.
+
 
 ---
 
